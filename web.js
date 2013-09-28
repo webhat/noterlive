@@ -107,6 +107,27 @@ app.get('/showuser', function(req, res, next) {
 });
 
 
+app.get('/lookupspeaker', function (req, res, next) {
+    console.log('Changing speaker: ' + req.query.handle);
+    args = { 'include_entities': 'true', 'screen_name': req.query.handle};
+    twitter.get('users/lookup', args, function (data, error, code) {
+        res.send(data ? data[0] : "");
+    });
+});
+
+app.get('/search', function (req, res, next) {
+    if (req.session.user) {
+        args = { 'q': req.query.search };
+        twitter.get('search/tweets', args, function (data, error, code) {
+
+        });
+        res.send("<img src='" + req.session.user.profile_image_url + "'> logged in as @" + req.session.user.screen_name);
+    } else {
+        res.send("not logged in");
+    }
+});
+
+
 var port = process.env.PORT || 5000;
 app.listen(port, function() {
   console.log("Listening on " + port);
