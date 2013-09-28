@@ -111,14 +111,99 @@ app.get('/showuser', function (req, res, next) {
 app.get('/lookupspeaker', function (req, res, next) {
     console.log('Changing speaker: ' + req.query.handle);
     args = { 'include_entities': 'true', 'screen_name': req.query.handle};
-    twitter.get('users/lookup', args, function (data, error, code) {
-        console.log(data);
-        console.log(error);
-        console.log(code);
-        res.send(data ? data[0] : "");
-    });
+    try {
+        twitter.get('users/lookup', args, function (data, error, code) {
+            res.send(data ? data[0] : "");
+        });
+    } catch (e) {
+        res.status(401).send('{ "error":"not logged in"}');
+        return;
+    }
 });
 
+collumn0 = [];
+collumn1 = [];
+collumn2 = [];
+
+search_last_id = {};
+
+/**
+ * Uses the <a href="https://dev.twitter.com/docs/api/1.1/get/search/tweets">Twitter Search API</a> to populate the page
+ */
+app.get('/search', function (req, res, next) {
+    console.log(search_last_id)
+    console.log("search: " + req.query.q);
+
+    console.log(req.url)
+    res.header('Cache-Control', 'no-cache, private, no-store, must-revalidate, max-stale=0, post-check=0, pre-check=0');
+
+    if (req.session.user) {
+
+        args = {
+            'q': req.query.q,
+            'count': 6
+        };
+
+        if ('undefined' !== typeof search_last_id[req.query.q]) {
+            args['since_id'] = search_last_id[req.query.q];
+        }
+
+        try {
+            twitter.get('search/tweets', args, function (data, error, code) {
+                collumn0 = collumn1 = collumn2 = [];
+                if (data == null) {
+                    res.send("no data received:" + error);
+                    return;
+                }
+
+                search_last_id[req.query.q] = data.statuses[data.statuses.length - 1].id;
+
+                data.statuses.forEach(function (status, itt) {
+                        // FIXME: debug
+                        if (itt > 6) return;
+
+                        num = itt % 3;
+
+                        date = new Date(status.created_at);
+                        twdate = date.toLocaleDateString();
+
+                        tweet = '<div style="float:left; margin:0; width:33%;"><blockquote class="twitter-tweet" data-conversation="none" data-cards="hidden" width="400"><p>' + status.text + '</p>' +
+                            '&mdash; ' + status.user.name + ' (@' + status.user.screen_name + ') <a href="https://twitter.com/' +
+                            status.user.screen_name + '/statuses/' + status.id_str + '">' + twdate + '</a></blockquote></div>'
+
+                        switch (num) {
+                            case 0:
+                                collumn0.push(tweet)
+                                break;
+                            case 1:
+                                collumn1.push(tweet);
+                                break;
+                            case 2:
+                                collumn2.push(tweet);
+                                break;
+                        }
+                    }
+                )
+                collumn0view = '<div>' + collumn0.join('') + '</div>'
+                collumn1view = '<div>' + collumn1.join('') + '</div>'
+                collumn2view = '<div>' + collumn2.join('') + '</div>'
+
+                res.send(collumn0view + collumn1view + collumn2view + '<script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script>');
+            });
+        } catch (e) {
+            res.send("not logged in");
+            return;
+        }
+
+    } else {
+        res.send("not logged in");
+    }
+});
+
+/*
+ <blockquote class="twitter-tweet"><p><a href="https://twitter.com/davemcclure">@davemcclure</a> enjoy!</p>&mdash; webhat/redhat (@webhat) <a href="https://twitter.com/webhat/statuses/383799410536091648">September 28, 2013</a></blockquote>
+ <script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script>
+ */
 
 var port = process.env.PORT || 5000;
 app.listen(port, function () {
