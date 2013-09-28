@@ -4,8 +4,32 @@
     <meta charset="utf-8">
     <link href="bootstrap.css" media="all" rel="stylesheet" type="text/css"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="twitter:site" content="@webhat">
 
     <script>
+
+        function hashTagSearch(e) {
+            query = "";
+            if (document.note.hashtag.value[0] != '#') {
+                query = "#"
+            }
+            query = query + document.note.hashtag.value;
+
+            iframe_url = "http://" + window.location.hostname + ":" + window.location.port + "/search?q=" + encodeURIComponent(query);
+            document.getElementById("search").src = iframe_url;
+            window.frames["search"].location.href = iframe_url;
+            frames[1].location.href = iframe_url;
+            //document.getElementById("search").src = document.getElementById("search").src;
+            //document.getElementById("search").reload(true);
+
+            //window.frames["search"].location.reload()
+            console.log("src :"+ document.getElementById("search").src);
+            console.log("href:"+ window.frames["search"].location.href);
+            console.log("ifra:"+ iframe_url);
+            console.log("quer:"+ query);
+            console.log("quer:"+ encodeURIComponent(query));
+
+        }
         function noteit() {
             document.note.composed.value = document.note.hashtag.value + " " + document.note.speakertwitter.value + ": " + document.note.quote.value;
             document.getElementById("charcount").innerHTML = document.note.composed.value.length;
@@ -65,6 +89,7 @@
             <h1><a class='navbar-brand' href="#">Noter Live</a></h1>
             <a class='btn btn-info pull-right' href="/auth/twitter">Login with Twitter</a>
         </div>
+        <div id="error" class="alert-danger"></div>
     </div>
 
 
@@ -73,7 +98,7 @@
             <div class="col col-lg-12">
                 <div class='input-group '>
                     <span class="input-group-addon input">#</span>
-                    <input type='text' name="hashtag" value="#indiewebcamp">
+                    <input type='text' name="hashtag" value="#security" onchange="hashTagSearch();">
                 </div>
             </div>
         </div>
@@ -84,14 +109,14 @@
             <div class='col col-lg-4'>
                 <div class='input-group'>
                     <span class="input-group-addon input">@</span>
-                    <input name="speakertwitter" value="@kevinmarks" type='text'/>
+                    <input name="speakertwitter" value="@webhat" type='text'/>
                 </div>
             </div>
             <div class='col col-lg-4'>
-                <input name="speakername" value="Kevin Marks" type='text'/>
+                <input name="speakername" value="" type='text'/>
             </div>
             <div class='col col-lg-4'>
-                <input type='text' name="speakerurl" value="http://epeus.blogspot.com">
+                <input type='text' name="speakerurl" value="">
             </div>
         </div>
         <div class='row'>
@@ -125,6 +150,7 @@
     </form>
     <div id="preview"></div>
     <iframe id="tweet" src="/showuser" seamless></iframe>
+    <iframe id="search" src="" width="1200" height="800" seamless></iframe>
 </div>
 
 
