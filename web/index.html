@@ -19,19 +19,9 @@
             document.getElementById("search").src = iframe_url;
             window.frames["search"].location.href = iframe_url;
             frames[1].location.href = iframe_url;
-            //document.getElementById("search").src = document.getElementById("search").src;
-            //document.getElementById("search").reload(true);
-
-            //window.frames["search"].location.reload()
-            console.log("src :"+ document.getElementById("search").src);
-            console.log("href:"+ window.frames["search"].location.href);
-            console.log("ifra:"+ iframe_url);
-            console.log("quer:"+ query);
-            console.log("quer:"+ encodeURIComponent(query));
-
         }
         function noteit() {
-            document.note.composed.value = document.note.hashtag.value + " " + document.note.speakertwitter.value + ": " + document.note.quote.value;
+            document.note.composed.value = document.note.speakertwitter.value + ": " + document.note.quote.value + " " + document.note.hashtag.value;
             document.getElementById("charcount").innerHTML = document.note.composed.value.length;
         }
         function getSpeakerHTML() {
@@ -56,6 +46,24 @@
             req.send(null);
             document.note.speakertwitter.value = '@' + handle;
         }
+        /*
+         function getlatesttweets() {
+         query = "";
+         if (document.note.hashtag.value[0] != '#') {
+         query = "#"
+         }
+         query = query + document.note.hashtag.value;
+         req = new XMLHttpRequest();
+         req.onreadystatechange = function () {
+         foundspeaker();
+         };
+         req.open("GET", '/poll?q=' + handle, true);
+         req.send(null);
+         document.note.speakertwitter.value = '@' + handle;
+         }
+         */
+
+
         function foundspeaker() {
             // only if req is "loaded"
             if (req.readyState == 4) {
