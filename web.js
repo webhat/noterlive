@@ -93,11 +93,16 @@ app.get('/auth/twitter/callback', function (req, res, next) {
 
 app.get('/sendtweet', function (req, res, next) {
     console.log("sendtweet: " + req.query.status);
-    twitter.post('statuses/update', {'status': req.query.status}, function (tweet, error, status) {
-        console.log(tweet ? 'posted as @' + tweet.user.screen_name : 'Not authenticated');
-        res.send(tweet ? "<a href='https://twitter.com/" + tweet.user.screen_name + "/status/" +
-            tweet.id_str + "'>" + tweet.text + "</a>" : "<a href='/auth/twitter'>login first</a>");
-    });
+    try {
+        twitter.post('statuses/update', {'status': req.query.status}, function (tweet, error, status) {
+            console.log(tweet ? 'posted as @' + tweet.user.screen_name : 'Not authenticated');
+            res.send(tweet ? "<a href='https://twitter.com/" + tweet.user.screen_name + "/status/" +
+                tweet.id_str + "'>" + tweet.text + "</a>" : "<a href='/auth/twitter'>login first</a>");
+        });
+    } catch (e) {
+        res.status(401).send('[{"error":"not logged in"}]');
+        return;
+    }
 });
 
 app.get('/showuser', function (req, res, next) {
@@ -128,40 +133,77 @@ streams = {};
 app.get('/stream', function (req, res, next) {
     console.log("stream: " + req.query.q);
 
+    hashtag = req.query.q.toLowerCase();
 
     args = {
-        'track': req.query.q
+        'track': req.query.q,
+        'stall_warnings': true
     };
 
-    if ('undefined' !== typeof search_last_id[req.query.q]) {
-        args['since_id'] = search_last_id[req.query.q];
+    if ('undefined' !== typeof search_last_id[hashtag]) {
+        args['since_id'] = search_last_id[hashtag];
     }
     try {
         // Setup cache
-        streams[req.session.user.screen_name] = {};
-        streams[req.session.user.screen_name][req.query.q] = [];
+        if ('undefined' === typeof streams[hashtag])
+            streams[hashtag] = {};
+        streams[hashtag][req.session.user.screen_name] = [];
+
 
         twitter.stream('statuses/filter', args, function (chunk) {
             var blob = JSON.parse(chunk);
-            streams[req.session.user.screen_name][req.query.q].push(blob);
+
+            try {
+                if ('undefined' === typeof blob.retweeted_status)
+                    if (!blob.protected)
+                        for (user in streams[hashtag]) {
+                            if ('undefined' !== typeof streams[hashtag][user][streams[hashtag][user].length - 1] && streams[hashtag][user][streams[hashtag][user].length - 1].id == blob.id)
+                                continue;
+                            streams[hashtag][user].push(blob);
+                        }
+                    else
+                        streams[req.query.q][req.session.user.screen_name].push(blob);
+
+                /*
+                 Array.prototype.slice.call(streams[req.query.q]).forEach(function (user, val) {
+                 console.log(user +"-"+val);
+                 streams[req.query.q][user].push(blob);
+                 });
+                 */
+
+                if (blob.truncated)
+                    console.log("truncated: " + chunk);
+                if (blob.protected)
+                    console.log("protected: " + chunk);
+
+            } catch (e) {
+                twitter.abort();
+                console.log("stopped stream: " + hashtag + "\r\n" + e);
+            }
         });
     } catch (e) {
         res.status(401).send('[{"error":"not logged in"}]');
         return;
     }
 
-    res.redirect('/poll?q=' + encodeURIComponent(req.query.q));
+    res.redirect('/poll?q=' + encodeURIComponent(hashtag));
 });
 
 app.get('/poll', function (req, res, next) {
-    console.log("poll: " + req.query.q);
+    console.log("poll: " + req.query.q + " for @" + req.session.user.screen_name);
 
-    if ('undefined' === typeof streams[req.session.user.screen_name] || 'undefined' === typeof streams[req.session.user.screen_name][req.query.q]) {
-        res.status(404).send('[{"error":"not found"}]');
+
+    hashtag = req.query.q.toLowerCase();
+
+    if ('undefined' === typeof streams[hashtag] || 'undefined' === typeof streams[hashtag][req.session.user.screen_name]) {
+        //res.status(404).send('[{"error":"not found"}]');
+        res.redirect('/stream?q=' + encodeURIComponent(hashtag));
+        return;
     }
-    blob = streams[req.session.user.screen_name][req.query.q];
-    res.send(blob);
-    streams[req.session.user.screen_name][req.query.q] = [];
+    blob = streams[hashtag][req.session.user.screen_name];
+    res.status(200).send(blob);
+
+    streams[hashtag][req.session.user.screen_name] = [];
 });
 
 collumn0 = [];
