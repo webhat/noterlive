@@ -116,9 +116,52 @@ app.get('/lookupspeaker', function (req, res, next) {
             res.send(data ? data[0] : "");
         });
     } catch (e) {
-        res.status(401).send('{ "error":"not logged in"}');
+        res.status(401).send('[{"error":"not logged in"}]');
         return;
     }
+});
+
+streams = {};
+/**
+ * Initiate stream for hashtag, uses the <a href="https://dev.twitter.com/docs/api/1.1/post/statuses/filter">Filtered Statuses Stream API</a>.
+ */
+app.get('/stream', function (req, res, next) {
+    console.log("stream: " + req.query.q);
+
+
+    args = {
+        'track': req.query.q
+    };
+
+    if ('undefined' !== typeof search_last_id[req.query.q]) {
+        args['since_id'] = search_last_id[req.query.q];
+    }
+    try {
+        // Setup cache
+        streams[req.session.user.screen_name] = {};
+        streams[req.session.user.screen_name][req.query.q] = [];
+
+        twitter.stream('statuses/filter', args, function (chunk) {
+            var blob = JSON.parse(chunk);
+            streams[req.session.user.screen_name][req.query.q].push(blob);
+        });
+    } catch (e) {
+        res.status(401).send('[{"error":"not logged in"}]');
+        return;
+    }
+
+    res.redirect('/poll?q=' + encodeURIComponent(req.query.q));
+});
+
+app.get('/poll', function (req, res, next) {
+    console.log("poll: " + req.query.q);
+
+    if ('undefined' === typeof streams[req.session.user.screen_name] || 'undefined' === typeof streams[req.session.user.screen_name][req.query.q]) {
+        res.status(404).send('[{"error":"not found"}]');
+    }
+    blob = streams[req.session.user.screen_name][req.query.q];
+    res.send(blob);
+    streams[req.session.user.screen_name][req.query.q] = [];
 });
 
 collumn0 = [];
@@ -131,10 +174,8 @@ search_last_id = {};
  * Uses the <a href="https://dev.twitter.com/docs/api/1.1/get/search/tweets">Twitter Search API</a> to populate the page
  */
 app.get('/search', function (req, res, next) {
-    console.log(search_last_id)
     console.log("search: " + req.query.q);
 
-    console.log(req.url)
     res.header('Cache-Control', 'no-cache, private, no-store, must-revalidate, max-stale=0, post-check=0, pre-check=0');
 
     if (req.session.user) {
@@ -150,7 +191,9 @@ app.get('/search', function (req, res, next) {
 
         try {
             twitter.get('search/tweets', args, function (data, error, code) {
-                collumn0 = collumn1 = collumn2 = [];
+                collumn0 = [];
+                collumn1 = [];
+                collumn2 = [];
                 if (data == null) {
                     res.send("no data received:" + error);
                     return;
@@ -158,16 +201,21 @@ app.get('/search', function (req, res, next) {
 
                 search_last_id[req.query.q] = data.statuses[data.statuses.length - 1].id;
 
+                status_done = {};
                 data.statuses.forEach(function (status, itt) {
                         // FIXME: debug
                         if (itt > 6) return;
+
+                        // ensure no duplicate tweets are shown
+                        if (status_done[status.id] === true) return;
+                        status_done[status.id] = true;
 
                         num = itt % 3;
 
                         date = new Date(status.created_at);
                         twdate = date.toLocaleDateString();
 
-                        tweet = '<div style="float:left; margin:0; width:33%;"><blockquote class="twitter-tweet" data-conversation="none" data-cards="hidden" width="400"><p>' + status.text + '</p>' +
+                        tweet = '<div><blockquote class="twitter-tweet" data-conversation="none" data-cards="hidden" width="400"><p>' + status.text + '</p>' +
                             '&mdash; ' + status.user.name + ' (@' + status.user.screen_name + ') <a href="https://twitter.com/' +
                             status.user.screen_name + '/statuses/' + status.id_str + '">' + twdate + '</a></blockquote></div>'
 
@@ -184,19 +232,19 @@ app.get('/search', function (req, res, next) {
                         }
                     }
                 )
-                collumn0view = '<div>' + collumn0.join('') + '</div>'
-                collumn1view = '<div>' + collumn1.join('') + '</div>'
-                collumn2view = '<div>' + collumn2.join('') + '</div>'
+                collumn0view = '<div style="float:left; margin:0; width:33%;">' + collumn0.join('') + '</div>'
+                collumn1view = '<div style="float:left; margin:0; width:33%;">' + collumn1.join('') + '</div>'
+                collumn2view = '<div style="float:left; margin:0; width:33%;">' + collumn2.join('') + '</div>'
 
                 res.send(collumn0view + collumn1view + collumn2view + '<script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script>');
             });
         } catch (e) {
-            res.send("not logged in");
+            res.status(401).send("not logged in");
             return;
         }
 
     } else {
-        res.send("not logged in");
+        res.status(401).send("not logged in");
     }
 });
 
