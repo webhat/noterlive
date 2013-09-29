@@ -7,18 +7,38 @@
     <meta name="twitter:site" content="@webhat">
 
     <script>
+        window.twttr = (function (d, s, id) {
+            var t, js, fjs = d.getElementsByTagName(s)[0];
+            if (d.getElementById(id)) return;
+            js = d.createElement(s);
+            js.id = id;
+            js.src = "https://platform.twitter.com/widgets.js";
+            fjs.parentNode.insertBefore(js, fjs);
+            return window.twttr || (t = { _e: [], ready: function (f) {
+                t._e.push(f)
+            } });
+        }(document, "script", "twitter-wjs"));
+    </script>
 
-        function hashTagSearch(e) {
+    <script>
+
+        var timeouts = [];
+
+        function hashTagSearch() {
             query = "";
             if (document.note.hashtag.value[0] != '#') {
                 query = "#"
             }
             query = query + document.note.hashtag.value;
 
-            iframe_url = "http://" + window.location.hostname + ":" + window.location.port + "/search?q=" + encodeURIComponent(query);
-            document.getElementById("search").src = iframe_url;
-            window.frames["search"].location.href = iframe_url;
-            frames[1].location.href = iframe_url;
+            /*
+             iframe_url = "http://" + window.location.hostname + ":" + window.location.port + "/search?q=" + encodeURIComponent(query);
+             document.getElementById("search").src = iframe_url;
+             #window.frames["search"].location.href = iframe_url;
+             frames[1].location.href = iframe_url;
+             */
+
+            startstream(query)
         }
         function noteit() {
             document.note.composed.value = document.note.speakertwitter.value + ": " + document.note.quote.value + " " + document.note.hashtag.value;
@@ -46,23 +66,6 @@
             req.send(null);
             document.note.speakertwitter.value = '@' + handle;
         }
-        /*
-         function getlatesttweets() {
-         query = "";
-         if (document.note.hashtag.value[0] != '#') {
-         query = "#"
-         }
-         query = query + document.note.hashtag.value;
-         req = new XMLHttpRequest();
-         req.onreadystatechange = function () {
-         foundspeaker();
-         };
-         req.open("GET", '/poll?q=' + handle, true);
-         req.send(null);
-         document.note.speakertwitter.value = '@' + handle;
-         }
-         */
-
 
         function foundspeaker() {
             // only if req is "loaded"
@@ -80,6 +83,95 @@
                 }
             }
         }
+
+        function startstream(query) {
+            for (var i = 0; i < timeouts.length; i++) {
+                clearInterval(timeouts[i]);
+            }
+
+            timeouts = [];
+
+            req = new XMLHttpRequest();
+            req.onreadystatechange = function () {
+                updatelatesttweets();
+            };
+            req.open("GET", '/stream?q=' + encodeURIComponent(query), true);
+            req.send(null);
+            console.log("starting stream");
+            timeouts.push(setInterval(getlatesttweets, 5000));
+        }
+
+        function getlatesttweets() {
+            query = "";
+            if (document.note.hashtag.value[0] != '#') {
+                query = "#"
+            }
+            query = query + document.note.hashtag.value;
+
+            req = new XMLHttpRequest();
+            req.onreadystatechange = function () {
+                updatelatesttweets();
+            };
+            req.open("GET", '/poll?q=' + encodeURIComponent(query), false);
+            req.send(null);
+            // console.log("getting tweets");
+        }
+
+
+        function updatelatesttweets() {
+            document.getElementById('error').innerHTML = "";
+            if (req.readyState == 4) {
+                // only if "OK"
+                if (req.status == 200 || req.status == 304) {
+                    //document.getElementById('error').innerHTML=req.responseText;
+                    messages = JSON.parse(req.responseText);
+
+                    //
+                    tweets = "";
+
+                    tweet_obj = Array.prototype.slice.call(document.getElementById('latesttweets').children);
+                    if (tweet_obj.length > 9)
+                        tweet_obj.splice(9, tweet_obj.length - 1)
+                    tweet_obj.forEach(function (elem, itt) {
+                        tweets = tweets + elem.outerHTML;
+                    });
+
+
+                    messages.forEach(function (status, itt) {
+                        date = new Date(status.created_at);
+                        twdate = date.toDateString();
+
+                        if ('undefined' !== typeof status.disconnect
+                                || 'undefined' !== typeof status.warning)
+                            return;
+
+                        tweet = '<div><blockquote class="twitter-tweet" data-conversation="none" data-cards="hidden" width="400"><p>' + status.text + '</p>' +
+                                '&mdash; <a href="https://twitter.com/' +
+                                status.user.screen_name + '" target="_new">' + status.user.name + '</a> (@' + status.user.screen_name + ') <a href="https://twitter.com/' +
+                                status.user.screen_name + '/statuses/' + status.id_str + '" target="_new">' + twdate + '</a></blockquote></div>';
+
+                        tweets = tweet + tweets;
+                    });
+                    if (tweets != "") {
+                        document.getElementById('latesttweets').innerHTML = tweets;
+                        obj = Array.prototype.slice.call(document.getElementById('latesttweets').children);
+                        obj.forEach(function (elem, itt) {
+                            elem.onclick = function (e) {
+                                interestingtweets = document.getElementById("interestingtweets");
+                                interestingtweets.insertBefore(this, interestingtweets.firstChild);
+                                twttr.widgets.load(interestingtweets.firstChild);
+                                if (interestingtweets.children.length > 5)
+                                    interestingtweets.removeChild(interestingtweets.lastChild);
+                            }
+                        });
+                    }
+
+                } else {
+                    document.getElementById('error').innerHTML = "ahah error:\n" +
+                            req.statusText;
+                }
+            }
+        }
     </script>
 
     <style type='text/css'>
@@ -90,7 +182,7 @@
     </style>
 
 </head>
-<body>
+<body onload="hashTagSearch();">
 <div class='container'>
     <div class="navbar">
         <div class="container">
@@ -106,7 +198,7 @@
             <div class="col col-lg-12">
                 <div class='input-group '>
                     <span class="input-group-addon input">#</span>
-                    <input type='text' name="hashtag" value="#security" onchange="hashTagSearch();">
+                    <input type='text' name="hashtag" value="#food" onchange="hashTagSearch();">
                 </div>
             </div>
         </div>
@@ -157,15 +249,28 @@
         </div>
     </form>
     <div id="preview"></div>
-    <iframe id="tweet" src="/showuser" seamless></iframe>
-    <iframe id="search" src="" width="1200" height="800" seamless></iframe>
+    <div class="row">
+        <div class="col col-4">
+            <iframe id="tweet" src="/showuser" seamless></iframe>
+            <div id="interestingtweets"></div>
+        </div>
+        <div id="latesttweets" class="col col-8"></div>
+    </div>
+    <!--iframe id="search" src="" width="1200" height="800" seamless></iframe-->
 </div>
 
 
 <footer class='well'>
-    <p>A web app to make live note posting (aka live-tweeting, live-blogging) easier. By Kevin Marks.
+    <p>
+        A web app to make live note posting (aka live-tweeting, live-blogging) easier. By Kevin Marks.
         Currently semi-functional, but less ugly thanks to Frédéric de Villamil.
-        <a href="https://github.com/kevinmarks/noterlive">Code here</a>.
+        <a href="https://github.com/kevinmarks/noterlive">Original code here</a>.
+    </p>
+
+    <p>
+        Update by Dani&euml;l W. Crompton
+        <a href="https://github.com/webhat/noterlive">Code here</a>.
+    </p>
 </footer>
 
 </body>
