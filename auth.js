@@ -1,4 +1,4 @@
 module.exports = {
-    consumerKey: "CONSUMER KEY HERE",
-    consumerSecret: "CONSUMER SECRET HERE"
+		consumerKey: "CONSUMER KEY HERE",
+		consumerSecret: "CONSUMER SECRET HERE"
 }
