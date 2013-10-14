@@ -3,6 +3,7 @@ var auth = new require('./auth');
 var consumerKey = auth.consumerKey;
 var consumerSecret = auth.consumerSecret;
 
+
 var OAuth = require('oauth').OAuth
     , oauth = new OAuth(
         "https://api.twitter.com/oauth/request_token",
@@ -15,6 +16,8 @@ var OAuth = require('oauth').OAuth
     );
 
 var twitter = require('twitter-api').createClient();
+var linkedin_client = require('linkedin-js')(auth.linkedInKey, auth.linkedInSecret, 'http://noterlive.rphh.org:5000/auth/linkedin')
+console.log(linkedin_client)
 
 var express = require("express");
 var app = express();
@@ -44,8 +47,8 @@ app.get('/auth/twitter', function (req, res) {
             res.redirect('https://twitter.com/oauth/authenticate?oauth_token=' + oauth_token)
         }
     });
-
 });
+
 
 app.get('/auth/twitter/callback', function (req, res, next) {
 
@@ -289,6 +292,39 @@ app.get('/search', function (req, res, next) {
         res.status(401).send("not logged in");
     }
 });
+
+app.get('/auth/linkedin', function (req, res) {
+    // the first time will redirect to linkedin
+    linkedin_client.getAccessToken(req, res, function (error, token) {
+        // will enter here when coming back from linkedin
+        req.session.token = token;
+
+        //res.render('auth');
+        res.redirect('/linkedin');
+    });
+});
+
+app.get('/linkedin', function (req, res) {
+
+    linkedin_client.apiCall('GET', '/people/~/network/updates',
+        {
+            token: {
+                oauth_token_secret: req.session.token.oauth_token_secret, oauth_token: req.session.token.oauth_token
+            }, share: {
+            //comment: req.param('message'), visibility: {code: 'anyone'}
+            // type=STAT&type=PICT&count=50&start=50
+            type: 'STAT',
+            count: 50,
+            start: 50
+        }
+        }
+        , function (error, result) {
+            console.log(error);
+            console.log(result);
+            res.send(result);
+        }
+    );
+})
 
 /*
  <blockquote class="twitter-tweet"><p><a href="https://twitter.com/davemcclure">@davemcclure</a> enjoy!</p>&mdash; webhat/redhat (@webhat) <a href="https://twitter.com/webhat/statuses/383799410536091648">September 28, 2013</a></blockquote>
