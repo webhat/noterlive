@@ -326,6 +326,9 @@ app.get('/linkedin', function (req, res) {
     );
 })
 
+app.get('/auth/tumblr/callback', function (req, res) {
+});
+
 /*
  <blockquote class="twitter-tweet"><p><a href="https://twitter.com/davemcclure">@davemcclure</a> enjoy!</p>&mdash; webhat/redhat (@webhat) <a href="https://twitter.com/webhat/statuses/383799410536091648">September 28, 2013</a></blockquote>
  <script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script>
