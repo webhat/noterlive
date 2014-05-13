@@ -11,7 +11,7 @@ var OAuth = require('oauth').OAuth
         consumerKey,
         consumerSecret,
         "1.0",
-        "http://localhost:5000/auth/twitter/callback",
+        "http://noterlive.rphh.org:5000/auth/twitter/callback",
         "HMAC-SHA1"
     ), tumblr_oauth = new OAuth(
         "http://www.tumblr.com/oauth/request_token",
@@ -19,7 +19,7 @@ var OAuth = require('oauth').OAuth
         auth.tumblrKey,
         auth.tumblrSecret,
         "1.0",
-        "http://localhost:5000/auth/tumblr/callback",
+        "http://noterlive.rphh.org:5000/auth/tumblr/callback",
         "HMAC-SHA1"
     );
 
