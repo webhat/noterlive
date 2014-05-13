@@ -300,11 +300,11 @@ app.get('/auth/linkedin', function (req, res) {
         req.session.token = token;
 
         //res.render('auth');
-        res.redirect('/linkedin');
+        res.redirect('/auth/linkedin/callback');
     });
 });
 
-app.get('/linkedin', function (req, res) {
+app.get('/auth/linkedin/callback', function (req, res) {
 
     linkedin_client.apiCall('GET', '/people/~/network/updates',
         {
