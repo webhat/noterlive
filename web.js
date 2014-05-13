@@ -11,7 +11,15 @@ var OAuth = require('oauth').OAuth
         consumerKey,
         consumerSecret,
         "1.0",
-        "http://noterlive.rphh.org:5000/auth/twitter/callback",
+        "http://localhost:5000/auth/twitter/callback",
+        "HMAC-SHA1"
+    ), tumblr_oauth = new OAuth(
+        "http://www.tumblr.com/oauth/request_token",
+        "http://www.tumblr.com/oauth/access_token",
+        auth.tumblrKey,
+        auth.tumblrSecret,
+        "1.0",
+        "http://localhost:5000/auth/tumblr/callback",
         "HMAC-SHA1"
     );
 
@@ -91,7 +99,6 @@ app.get('/auth/twitter/callback', function (req, res, next) {
     else {
         res.redirect('/'); // Redirect to login page
     }
-
 });
 
 app.get('/sendtweet', function (req, res, next) {
@@ -326,7 +333,71 @@ app.get('/auth/linkedin/callback', function (req, res) {
     );
 })
 
+app.get('/auth/tumblr', function (req, res) {
+    tumblr_oauth.getOAuthRequestToken(function (error, oauth_token, oauth_token_secret, results) {
+        if (error) {
+            console.log(error);
+            res.send("Authentication Failed!");
+        }
+        else {
+            tumblr_token = req.session.oauth = {
+                token: oauth_token,
+                token_secret: oauth_token_secret
+            };
+            console.log(req.session.oauth);
+            res.redirect('http://www.tumblr.com/oauth/authorize?oauth_token=' + oauth_token);
+        }
+    });
+});
+
 app.get('/auth/tumblr/callback', function (req, res) {
+    if (req.session.oauth) {
+        req.session.oauth.verifier = req.query.oauth_verifier;
+        var oauth_data = req.session.oauth;
+
+        tumblr_oauth.getOAuthAccessToken(
+            oauth_data.token,
+            oauth_data.token_secret,
+            oauth_data.verifier,
+            function (error, oauth_access_token, oauth_access_token_secret, results) {
+                if (error) {
+                    console.log(error);
+                    res.send("Authentication Failure!");
+                }
+                else {
+                    req.session.oauth.access_token = oauth_access_token;
+                    req.session.oauth.access_token_secret = oauth_access_token_secret;
+                    console.log(results, req.session.oauth);
+										var t_oauth = {
+											consumer_key: auth.tumblrKey,
+											consumer_secret: auth.tumblrSecret,
+											token: oauth_access_token,
+											token_secret: oauth_access_token
+										};
+
+										var post_port = 80;
+										var post_path = '/v2/blog/webhat.tumblr.com/post';
+										var postUrl = 'http://api.tumblr.com' + post_path;
+
+										var post_data = {
+											'type': 'text',
+											'title': 'Test',
+											'body': 'Testing'
+										};
+
+										tumblr_oauth.post(postUrl, oauth_access_token, oauth_access_token_secret, post_data, 'application/x-www-form-urlencoded', function(error, data, response) {
+											if(error) return console.log(error);
+											var parsedData = JSON.parse(data);
+											console.log(parsedData);
+											res.redirect('/'); // Redirect to login page
+											return;
+										});
+							}
+				});
+		}
+    else {
+        res.redirect('/'); // Redirect to login page
+    }
 });
 
 /*
